@@ -44,15 +44,19 @@ public class ManagedProcess {
 					public void run() {
 						if (process != null) {
 							try {
-								@SuppressWarnings("unused")
-								int exitCode = process.exitValue();
-								if (outListener != null) {
-									if (outListener.isAlive()) {
-										outListener.interrupt();
+								if(process.isAlive()) {
+									@SuppressWarnings("unused")
+									int exitCode = process.exitValue();
+									if (outListener != null) {
+										if (outListener.isAlive()) {
+											outListener.interrupt();
+											outListener = null;
+										}
 									}
+								} else {
+									process = null;
 								}
-								initProcess();
-							} catch (IOException e) {
+							} catch (Exception e) {
 							}
 						}
 					}
@@ -116,8 +120,9 @@ public class ManagedProcess {
 			try {
 				sendCommandToProcess(command, process);
 			} catch (Exception ex) {
-				ex.printStackTrace();
-				ServerManager.getLogger().warn("Command not executed...");
+				this.process = null;
+				ServerManager.getLogger()
+						.warn("Command not executed... No Server instance running... try /start to restart...");
 			}
 		} else {
 			ServerManager.getLogger().warn("Server process is NOT running...");

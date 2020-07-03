@@ -11,7 +11,7 @@ import org.apache.commons.io.IOUtils;
 
 import de.depascaldc.management.commands.CommandMap;
 import de.depascaldc.management.commands.defaults.*;
-import de.depascaldc.management.console.ManagerConsole;
+import de.depascaldc.management.console.JLineTerminalCLI;
 import de.depascaldc.management.logger.Logger;
 import de.depascaldc.management.process.ManagedProcess;
 import de.depascaldc.management.rest.RESTApi;
@@ -21,7 +21,7 @@ public enum ServerManager {
 	INSTANCE;
 
 	private static Logger logger;
-	static ManagerConsole console;
+	static JLineTerminalCLI console;
 
 	private static String dataPath;
 
@@ -79,7 +79,6 @@ public enum ServerManager {
 				restApi.start();
 			}
 		});
-		console = new ManagerConsole();
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
@@ -91,7 +90,7 @@ public enum ServerManager {
 			public void run() {
 				setName("ConsoleThread");
 				try {
-					ServerManager.console.start();
+					console = new JLineTerminalCLI(logger);
 				} catch (Exception e) {
 					getLogger().error("Terminal/ConsoleReader could not be initialized...", e);
 					System.exit(0);
@@ -108,6 +107,7 @@ public enum ServerManager {
 		commandMap = new CommandMap();
 		commandMap.register(new MHelpCommand());
 		commandMap.register(new MStopCommand());
+		commandMap.register(new StartCommand());
 		commandMap.register(new GarbageCollectionCommand());
 		commandMap.register(new APIAuthenticationCommand());
 	}
@@ -137,12 +137,10 @@ public enum ServerManager {
 						getLogger().info("Webserver API closed...");
 					} catch (Exception e) {
 					}
+					getLogger().info("Closing Console / Terminal...");
+					console.close();
 					getLogger().info("Shutdownhook executed succesfully... Bye!");
-					Thread.sleep(200);
-					Thread.currentThread().interrupt();
-				} catch (InterruptedException e) {
-					getLogger().error("Shutting down ERROR... Shutdownhook failed...");
-					Thread.currentThread().interrupt();
+				} catch (Exception e) {
 				}
 			}
 		}));
@@ -166,7 +164,7 @@ public enum ServerManager {
 	}
 
 	public static boolean dispatchCommand(String command) {
-		return ManagerConsole.runConsoleCommand(command);
+		return JLineTerminalCLI.runCommand(command);
 	}
 
 	public static Properties getProperties() {

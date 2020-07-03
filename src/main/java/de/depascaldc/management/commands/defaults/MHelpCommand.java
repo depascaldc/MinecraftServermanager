@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import de.depascaldc.management.commands.ConsoleCommand;
-import de.depascaldc.management.console.ManagerConsole;
+import de.depascaldc.management.console.JLineTerminalCLI;
 import de.depascaldc.management.logger.Logger;
 import de.depascaldc.management.main.ServerManager;
 
@@ -50,7 +50,7 @@ public class MHelpCommand extends ConsoleCommand {
 			l.info("<<< ---------------------------------- Command Help ---------------------------------- >>>");
 			return true;
 		}
-		ManagerConsole.runConsoleCommand("help help");
+		JLineTerminalCLI.runCommand("help help");
 		return false;
 
 	}

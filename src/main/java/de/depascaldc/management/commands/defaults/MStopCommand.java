@@ -15,7 +15,11 @@ public class MStopCommand extends ConsoleCommand {
 	@Override
 	public boolean executeCommand(String label, String[] args) {
 		try {
-			ServerManager.getManagedProcess().stopProcess();
+			if (label.equalsIgnoreCase("mstop")) {
+				ServerManager.getManagedProcess().stopProcess();
+			} else {
+				System.exit(0);
+			}
 		} catch (Exception e) {
 		}
 		return true;
