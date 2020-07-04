@@ -92,7 +92,7 @@ public class Logger {
 			TESTS_CACHED_LOG.add(ConsoleColors.stripColors(message_final));
 		} else {
 			try {
-				socketMsg(message_final);
+				socketMsg(message);
 			} catch (Exception e) {
 			}
 		}
