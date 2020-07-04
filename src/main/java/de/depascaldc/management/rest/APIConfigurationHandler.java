@@ -28,8 +28,13 @@
 package de.depascaldc.management.rest;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.glassfish.grizzly.http.Cookie;
 import org.glassfish.grizzly.http.server.HttpHandler;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
@@ -40,7 +45,7 @@ import de.depascaldc.management.logger.ConsoleColors;
 import de.depascaldc.management.main.ServerManager;
 
 public class APIConfigurationHandler {
-	
+
 	private String AUTH_KEY;
 	private String AUTHORIZATION;
 
@@ -65,6 +70,22 @@ public class APIConfigurationHandler {
 				});
 			}
 		}, "/");
+		if (ServerManager.getProperties().getProperty("rcon-enabled").equalsIgnoreCase("true")) {
+			config.addHttpHandler(new HttpHandler() {
+				@Override
+				public void service(Request request, Response response) throws Exception {
+					// todo session auth and session valid checks
+					response.addCookie(
+							new Cookie("rcon_session_auth:" + ServerManager.getProperties().getProperty("rcon-port"),
+									UUID.randomUUID().toString()));
+					InputStream inputStream = ServerManager.class.getResourceAsStream("/rcon/rc.html");
+					String html = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
+					respondHtmlText(request, response,
+							html.replace("%%port%%", ServerManager.getProperties().getProperty("rcon-port"))
+									.replace("%%apiport%%", ServerManager.getProperties().getProperty("api-port")));
+				}
+			}, "/rcon");
+		}
 		config.addHttpHandler(new HttpHandler() {
 			@Override
 			public void service(Request request, Response response) throws Exception {

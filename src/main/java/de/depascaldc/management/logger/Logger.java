@@ -29,12 +29,16 @@ package de.depascaldc.management.logger;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
+import javax.websocket.EncodeException;
+
 import de.depascaldc.management.Initializer;
+import de.depascaldc.management.console.rc.MessagingEndpoint;
 import de.depascaldc.management.logger.LogUtil.LogType;
 import de.depascaldc.management.main.ServerManager;
 
@@ -86,6 +90,11 @@ public class Logger {
 		String message_final = ConsoleColors.WHITE + "[OUT] > " + ConsoleColors.RESET + message + ConsoleColors.RESET;
 		if(isTestRun) {
 			TESTS_CACHED_LOG.add(ConsoleColors.stripColors(message_final));
+		} else {
+			try {
+				socketMsg(message_final);
+			} catch (Exception e) {
+			}
 		}
 		System.out.println(message_final);
 	}
@@ -233,10 +242,20 @@ public class Logger {
 				fr.close();
 			} catch (Exception folder) {
 			}
+			try {
+				socketMsg(message);
+			} catch (Exception e) {
+			}
 		} else {
 			TESTS_CACHED_LOG.add(ConsoleColors.stripColors(message));
 		}
 		return message;
+	}
+	
+	private void socketMsg(String msg) throws IOException, EncodeException {
+		if(ServerManager.getProperties().getProperty("rcon-enabled").equalsIgnoreCase("true")) {
+			MessagingEndpoint.broadcast(ConsoleColors.stripColors(msg).replace("[", "(").replace("]", ")"));
+		}
 	}
 
 }

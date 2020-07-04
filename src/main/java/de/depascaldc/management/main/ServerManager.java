@@ -39,6 +39,7 @@ import org.apache.commons.io.IOUtils;
 import de.depascaldc.management.commands.CommandMap;
 import de.depascaldc.management.commands.defaults.*;
 import de.depascaldc.management.console.JLineTerminalCLI;
+import de.depascaldc.management.console.rc.WebsocketServer;
 import de.depascaldc.management.logger.Logger;
 import de.depascaldc.management.process.ManagedProcess;
 import de.depascaldc.management.rest.RESTApi;
@@ -60,6 +61,7 @@ public enum ServerManager {
 	private static ManagedProcess managedProcess;
 
 	private static RESTApi restApi;
+	private static WebsocketServer websocketServer;
 
 	private static PropertiesManager propertiesManager;
 
@@ -98,6 +100,11 @@ public enum ServerManager {
 
 		addShutdownHook();
 		commandMapInit();
+		
+		if(getProperties().getProperty("rcon-enabled").equalsIgnoreCase("true")) {
+			websocketServer = new WebsocketServer();
+			websocketServer.runServer();
+		}
 
 		runAsync(new Runnable() {
 			@Override
@@ -162,6 +169,12 @@ public enum ServerManager {
 					try {
 						restApi.getServer().shutdownNow();
 						getLogger().info("Webserver API closed...");
+					} catch (Exception e) {
+					}
+					getLogger().info("Closing Websocketserver...");
+					try {
+						websocketServer.stopServer();
+						getLogger().info("Websocketserver closed...");
 					} catch (Exception e) {
 					}
 					getLogger().info("Closing Console / Terminal...");

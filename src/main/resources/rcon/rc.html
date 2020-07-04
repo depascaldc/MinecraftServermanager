@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+	    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+
+		<title>RCON - Server %%port%% | MinecrfatServermanager</title>
+		
+		<meta http-equiv="content-language" content="en" />
+	    <meta name="Description" content="MinecrfatServermanager Remote Console - https://github.com/depascaldc/MinecraftServermanager" />
+	    <meta name="Keywords" content="minecraft, remote, console" />
+	    <meta name="twitter:card" content="summary" />
+	    <meta name="twitter:title" content="MinecraftServermanager RCON" />
+	    <meta name="twitter:description"
+	        content="MinecrfatServermanager Remote Console - https://github.com/depascaldc/MinecraftServermanager" />
+	    <meta property="og:locale" content="en" />
+	    <meta property="og:site_name" content="MinecraftServermanager" />
+	    <meta property="og:url" content="https://github.com/depascaldc/MinecraftServermanager" />
+	    <meta property="og:title" content="MinecraftServermanager RCON" />
+	    <meta property="og:description" content="MinecrfatServermanager Remote Console - https://github.com/depascaldc/MinecraftServermanager" />
+
+		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+		<script src="https://unpkg.com/jquery.terminal/js/jquery.terminal.min.js"></script>
+		<link rel="stylesheet" href="https://unpkg.com/jquery.terminal/css/jquery.terminal.min.css"/>
+
+	    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css"
+	        integrity="sha384-9gVQ4dYFwwWSjIDZnLEWnxCjeSWFphJiwGPXr1jddIhOegiu1FwO5qRGvFXOdJZ4" crossorigin="anonymous">
+
+	    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"
+	        integrity="sha384-uefMccjFJAIv6A+rW+L4AHf99KvxDjWSu1z9VI8SKNVmz4sk7buKt/6v9KI65qnm" crossorigin="anonymous">
+	    </script>
+		
+		<style>
+			body {
+				display: flex;
+				flex-flow: column nowrap;
+				align-items: stretch;
+				overflow-x: hidden;
+				min-height: 100vh;
+				width: 100vw;
+				padding: 0;
+				margin: 0;
+				font-family: "Lucida Console", "Monaco", "monospace";
+				color: chartreuse;
+				background: rgb(50, 50, 50);
+			}
+			.item-unselectable {
+				user-select: none;
+				-moz-user-select: none;
+				-khtml-user-select: none;
+				-webkit-user-select: none;
+				-o-user-select: none;
+			}
+			.consoleDiv {
+				height: 100vh;
+				top: 0;
+			}
+			.alignleft {
+				float: left;
+			}
+			.alignright {
+				float: right;
+			}
+			#textbox {
+				padding-top: 10px;
+			}
+			footer {
+				bottom: 0;
+				width: 100%;
+				height: 3rem;
+				text-align: right;
+				padding-right: 20px;
+				background-image: linear-gradient(to left, rgb(0, 0, 0), rgb(27, 27, 27), rgb(54, 54, 54));
+				color: rgb(97, 97, 97);
+				margin-top: _ 20px;
+			}
+			::-webkit-scrollbar {
+				max-width: 10px;
+			}
+			::-webkit-scrollbar-thumb {
+				background: rgb(0, 33, 180);
+				border-radius: 5px;
+			}
+			::-webkit-scrollbar-thumb:hover {
+				background: rgb(0, 14, 75)
+			}
+			::-webkit-scrollbar-track {
+				border-radius: 10px;
+				box-shadow: inset 0 0 3px grey;
+			}
+		</style>
+	</head>
+	<body class="item-unselectable">
+		<div class="consoleDiv item-unselectable"></div>
+		<script>
+			function chart(message) {
+			    return "[[g;chartreuse;black]" + message + "]";
+			}
+			var rconSocket = new WebSocket("ws://" + window.location.host.replace("%%apiport%%", "%%port%%") + "/");
+			$(document).ready(() => {
+				jQuery(($, undefined) => {
+					var connected = false;
+				    $('.consoleDiv').terminal(function(command) {
+				        if (command !== '') {
+				            try {
+								rconSocket.send("CMD:" + command);
+				            } catch(exception) {
+								this.echo(chart('Command cannot be sent... Websocket closed...'));
+				                this.error(chart(new String(exception)));
+				            }
+				        }
+				    }, {
+				        greetings: 'Remote-Console MinecraftServermanager: https://github.com/depascaldc/MinecraftServermanager',
+				        name: 'Remote-Console',
+				        prompt: 'console> '
+				    });
+				});
+				var onMessage = function(event) {
+					var data = event.data;
+					if(!data.startsWith("CMD")) {
+						$.terminal.active().echo(chart(data));
+					}
+				};
+				var onError = function(event) {
+					$.terminal.active().echo(chart(event.data));
+				}
+				var onOpen = function() {
+					console.log('OPENED WS-Connection: ' + "ws://" + window.location.host.replace("%%apiport%%", "%%port%%") + "/");
+					connected = true;
+				};
+				var onClose = function() {
+					console.log('CLOSED Socket...');
+					rconSocket = null;
+					connected = false;
+				};
+				rconSocket.onopen = onOpen;
+				rconSocket.onclose = onClose;
+				rconSocket.onmessage = onMessage;
+				rconSocket.onerror = onError;
+			});
+		</script>
+		<footer class="footer item-unselectable">
+		    <div id="textbox">
+		        <p class="alignleft">
+		            <a class="nav-link item-unselectable" style="color:rgb(0, 123, 255);" rel="canonical" 
+						target="_blank" href="https://github.com/depascaldc/MinecraftServermanager/issues">
+		            <i class="fa fa-sitemap"></i> 
+		            Github (report ISSUE?)</a></p>
+		        <p class="alignright">Copyright © 2020 - <a href="https://net-tools.xyz" style="color:rgb(0, 123, 255);"
+		            target="_blank" rel="canonical">depascaldc</a>. All Rights Reserved</p>
+		    </div>
+		    <p>
+
+		    </p>
+		</footer>
+	
+	</body>
+</html>
