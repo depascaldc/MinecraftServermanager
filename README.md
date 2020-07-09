@@ -5,6 +5,7 @@ A Simple to use MinecraftServer installer and manager written in java
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
 [![Build Status](https://ci.net-tools.xyz/job/MinecraftServermanager/badge/icon)](https://ci.net-tools.xyz/job/MinecraftServermanager/)
 [![Discord](https://img.shields.io/discord/446454921915662336.svg)](https://discord.gg/Unhv2aN)
+[![Visits](http://hits.dwyl.com/depascaldc/MinecraftServermanager.svg)](http://hits.dwyl.com/depascaldc/MinecraftServermanager)
 
 This software is **under development** yet, we welcome contributions. 
 
