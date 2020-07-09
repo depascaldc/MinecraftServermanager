@@ -83,6 +83,9 @@ public class Logger {
 		info(ConsoleColors.CYAN_BOLD_BRIGHT + "================== All Rights Reserved! ==================");
 		info(ConsoleColors.CYAN_BOLD_BRIGHT + "==========================================================");
 	}
+	
+	public Logger(String pluginName, String nd) {
+	}
 
 	public void log(String message) {
 		System.out.println(saveline(LogUtil.translate(LogType.LOG, message)));
@@ -234,7 +237,7 @@ public class Logger {
 		}
 	}
 
-	private String saveline(String message) {
+	public String saveline(String message) {
 		if (!isTestRun) {
 			SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
 			Calendar cal = Calendar.getInstance();

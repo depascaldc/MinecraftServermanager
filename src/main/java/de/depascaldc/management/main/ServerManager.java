@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.io.IOUtils;
@@ -41,6 +42,8 @@ import de.depascaldc.management.commands.defaults.*;
 import de.depascaldc.management.console.JLineTerminalCLI;
 import de.depascaldc.management.console.rc.WebsocketServer;
 import de.depascaldc.management.logger.Logger;
+import de.depascaldc.management.plugins.Plugin;
+import de.depascaldc.management.plugins.PluginManager;
 import de.depascaldc.management.process.ManagedProcess;
 import de.depascaldc.management.rest.RESTApi;
 
@@ -64,6 +67,8 @@ public enum ServerManager {
 	private static WebsocketServer websocketServer;
 
 	private static PropertiesManager propertiesManager;
+
+	private static PluginManager pluginManager;
 
 	public static void initialize(String mainPath, String service) throws IOException {
 		propertiesFile = new File(mainPath, "servermanager.properties");
@@ -100,8 +105,10 @@ public enum ServerManager {
 
 		addShutdownHook();
 		commandMapInit();
+		pluginManager = new PluginManager(mainPath + "managerplugins/");
+		Map<String, Plugin> plsMap = pluginManager.loadPlugins(mainPath + "managerplugins/");
 		
-		if(getProperties().getProperty("rcon-enabled").equalsIgnoreCase("true")) {
+		if (getProperties().getProperty("rcon-enabled").equalsIgnoreCase("true")) {
 			websocketServer = new WebsocketServer();
 			websocketServer.runServer();
 		}
@@ -113,12 +120,28 @@ public enum ServerManager {
 				restApi.start();
 			}
 		});
+		
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
 				managedProcess = new ManagedProcess();
 			}
 		});
+		
+		for (Plugin plugin : plsMap.values()) {
+			try {
+				ServerManager.getLogger().info("Enabling Plugin " + plugin.getDescription().getFullName());
+				if (!plugin.isEnabled()) {
+					enablePlugin(plugin);
+					ServerManager.getLogger().info("Enabled Plugin " + plugin.getDescription().getFullName());
+				} else {
+					ServerManager.getLogger().info("Plugin " + plugin.getDescription().getFullName() + " is already enabled.");
+				}
+			} catch (Exception e) {
+				ServerManager.getLogger().error("Enabling Plugin " + plugin.getName() + " failed..");
+			}
+		}
+		
 		new Thread() {
 			@Override
 			public void run() {
@@ -131,7 +154,16 @@ public enum ServerManager {
 				}
 			}
 		}.run();
+		
 	}
+	
+	public static void enablePlugin(Plugin plugin) {
+        pluginManager.enablePlugin(plugin);
+    }
+	
+	public static void disablePlugins() {
+        pluginManager.disablePlugins();
+    }
 
 	public static void runAsync(Runnable run) {
 		new Thread(run).start();
@@ -154,6 +186,8 @@ public enum ServerManager {
 				try {
 					Thread.sleep(200);
 					getLogger().info("Shutting down running shutdown hook...");
+					pluginManager.disablePlugins();
+			        pluginManager.clearPlugins();
 					Thread.sleep(200);
 					if (managedProcess != null) {
 						if (managedProcess.getProcess() != null) {
@@ -218,6 +252,10 @@ public enum ServerManager {
 
 	public static RESTApi getRestApi() {
 		return restApi;
+	}
+
+	public static PluginManager getPluginManager() {
+		return pluginManager;
 	}
 
 }
