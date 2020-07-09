@@ -48,6 +48,8 @@ public class Logger {
 	private boolean isTestRun = false;
 
 	public static List<String> TESTS_CACHED_LOG = new ArrayList<String>();
+	
+	public static List<String> CACHED_LOG = new ArrayList<String>();
 
 	public Logger() {
 		this.dataPath = new File(Initializer.MAIN_PATH).getAbsolutePath() + "/";
@@ -95,6 +97,7 @@ public class Logger {
 				socketMsg(message);
 			} catch (Exception e) {
 			}
+			CACHED_LOG.add(ConsoleColors.stripColors(message));
 		}
 		System.out.println(message_final);
 	}
@@ -246,6 +249,7 @@ public class Logger {
 				socketMsg(message);
 			} catch (Exception e) {
 			}
+			CACHED_LOG.add(ConsoleColors.stripColors(message));
 		} else {
 			TESTS_CACHED_LOG.add(ConsoleColors.stripColors(message));
 		}

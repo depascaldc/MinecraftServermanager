@@ -144,6 +144,7 @@ public enum ServerManager {
 		commandMap.register(new StartCommand());
 		commandMap.register(new GarbageCollectionCommand());
 		commandMap.register(new APIAuthenticationCommand());
+		commandMap.register(new UploadLogCommand());
 	}
 
 	private static void addShutdownHook() {
