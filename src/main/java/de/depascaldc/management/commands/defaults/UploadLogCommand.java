@@ -41,6 +41,7 @@ public class UploadLogCommand extends ConsoleCommand {
 		super("logupload");
 		setDescription("Get a Paste of a specified amount of lines out of the log. Default = 100 Max = 1000");
 		setUsage("/lup [counter lines]");
+		setAliases("lup");
 	}
 
 	@Override
