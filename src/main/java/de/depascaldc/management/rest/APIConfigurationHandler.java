@@ -30,24 +30,31 @@ package de.depascaldc.management.rest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.grizzly.http.Cookie;
+import org.glassfish.grizzly.http.Method;
 import org.glassfish.grizzly.http.server.HttpHandler;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 import org.glassfish.grizzly.http.server.ServerConfiguration;
 import org.glassfish.grizzly.http.util.HttpStatus;
 
+import de.depascaldc.management.console.JLineTerminalCLI;
 import de.depascaldc.management.logger.ConsoleColors;
 import de.depascaldc.management.main.ServerManager;
+import de.depascaldc.management.util.Utils;
 
 public class APIConfigurationHandler {
 
 	private String AUTH_KEY;
 	private String AUTHORIZATION;
+
+	public static Map<String, Long> authenticatedSessions = new HashMap<String, Long>();
 
 	public APIConfigurationHandler(String AUTH_KEY, String AUTHORIZATION) {
 		this.AUTH_KEY = AUTH_KEY;
@@ -55,34 +62,67 @@ public class APIConfigurationHandler {
 	}
 
 	public void setConfigurationOptions(ServerConfiguration config) {
-		config.addHttpHandler(new HttpHandler() {
-			@Override
-			public void service(Request request, Response response) throws Exception {
-				new APIAction(new Runnable() {
-					@Override
-					public void run() {
-						ServerManager.getLogger().warn("API ->> Pinged path /");
-					}
-				}, new Runnable() {
-					@Override
-					public void run() {
-					}
-				});
-			}
-		}, "/");
 		if (ServerManager.getProperties().getProperty("rcon-enabled").equalsIgnoreCase("true")) {
 			config.addHttpHandler(new HttpHandler() {
 				@Override
 				public void service(Request request, Response response) throws Exception {
-					// todo session auth and session valid checks
-					response.addCookie(
-							new Cookie("rcon_session_auth:" + ServerManager.getProperties().getProperty("rcon-port"),
-									UUID.randomUUID().toString()));
-					InputStream inputStream = ServerManager.class.getResourceAsStream("/rcon/rc.html");
-					String html = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
-					respondHtmlText(request, response,
-							html.replace("%%port%%", ServerManager.getProperties().getProperty("rcon-port"))
-									.replace("%%apiport%%", ServerManager.getProperties().getProperty("api-port")));
+					if (request.getMethod() == Method.GET) {
+						if (isSessionValid(request)) {
+							ServerManager.getLogger().debug("RCON REDIR: /rcon (valid session provided)");
+							response.sendRedirect("/rcon");
+							return;
+						}
+						InputStream inputStream = ServerManager.class.getResourceAsStream("/rcon/rclogin.html");
+						String html = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
+						respondHtmlText(request, response,
+								html.replace("%%port%%", ServerManager.getProperties().getProperty("rcon-port"))
+										.replace("%%apiport%%", ServerManager.getProperties().getProperty("api-port")));
+						return;
+					}
+					if (request.getMethod() == Method.POST) {
+						ServerManager.getLogger().debug("RCONLOGIN POST");
+						boolean matchKey = false;
+						boolean matchAuth = false;
+						for (String param : request.getParameterMap().keySet()) {
+							if (param.equalsIgnoreCase("apikey")) {
+								matchKey = ServerManager.getProperties().getProperty("api-key")
+										.equals(StringUtils.join(request.getParameterMap().get(param)));
+							}
+							if (param.equalsIgnoreCase("apiauth")) {
+								matchAuth = ServerManager.getProperties().getProperty("api-auth")
+										.equals(StringUtils.join(request.getParameterMap().get(param)));
+							}
+						}
+						boolean loginValid = matchAuth && matchKey;
+						ServerManager.getLogger().debug("RCON LOGIN, Login Valid? = " + loginValid);
+						if (loginValid) {
+							response.addCookie(getNewSessionCookie());
+							response.sendRedirect("/rcon");
+						} else {
+							InputStream inputStream = ServerManager.class.getResourceAsStream("/rcon/rclogin.html");
+							String html = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
+							respondHtmlText(request, response,
+									html.replace("%%port%%", ServerManager.getProperties().getProperty("rcon-port"))
+											.replace("%%apiport%%",
+													ServerManager.getProperties().getProperty("api-port"))
+											.replace("<!-- %%on_invalid_login%% -->",
+													"<h1>Invalid login... Try again...</h1>"));
+						}
+						return;
+					}
+				}
+			}, "/rconlogin");
+			config.addHttpHandler(new HttpHandler() {
+				@Override
+				public void service(Request request, Response response) throws Exception {
+					if (isSessionValid(request)) {
+						InputStream inputStream = ServerManager.class.getResourceAsStream("/rcon/rc.html");
+						String html = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
+						respondHtmlText(request, response,
+								html.replace("%%port%%", ServerManager.getProperties().getProperty("rcon-port"))
+										.replace("%%apiport%%", ServerManager.getProperties().getProperty("api-port")));
+					} else
+						response.sendRedirect("/rconlogin");
 				}
 			}, "/rcon");
 		}
@@ -99,7 +139,7 @@ public class APIConfigurationHandler {
 						@Override
 						public void run() {
 							try {
-								respondHtmlText(request, response, "Not implemented yet.");
+								respondHtmlText(request, response, "PONG");
 							} catch (IOException e) {
 							}
 						}
@@ -116,13 +156,50 @@ public class APIConfigurationHandler {
 					new APIAction(new Runnable() {
 						@Override
 						public void run() {
-							ServerManager.getLogger().warn("API ->> Pinged path \"/stop/\" + AUTH");
+							ServerManager.getLogger().warn("API ->> Pinged path \"/restart/\" + AUTH");
+							ServerManager.runAsync(new Runnable() {
+								@Override
+								public void run() {
+									ServerManager.getManagedProcess().stopProcess();
+									try {
+										ServerManager.getManagedProcess().initProcess();
+									} catch (IOException e) {
+									}
+								}
+							});
 						}
 					}, new Runnable() {
 						@Override
 						public void run() {
 							try {
-								respondHtmlText(request, response, "Not implemented yet.");
+								respondHtmlText(request, response, "OK");
+							} catch (IOException e) {
+							}
+						}
+					});
+				} else {
+					sendUnauthorized(response);
+				}
+			}
+		}, "/restart/" + AUTH_KEY);
+		config.addHttpHandler(new HttpHandler() {
+			@Override
+			public void service(Request request, Response response) throws Exception {
+				if (checkAuthorization(request)) {
+					new APIAction(new Runnable() {
+						@Override
+						public void run() {
+							ServerManager.getLogger().warn("API ->> Pinged path \"/stop/\" + AUTH");
+							try {
+								ServerManager.getManagedProcess().stopProcess();
+							} catch (Exception e) {
+							}
+						}
+					}, new Runnable() {
+						@Override
+						public void run() {
+							try {
+								respondHtmlText(request, response, "OK");
 							} catch (IOException e) {
 							}
 						}
@@ -140,12 +217,16 @@ public class APIConfigurationHandler {
 						@Override
 						public void run() {
 							ServerManager.getLogger().warn("API ->> Pinged path \"/start/\" + AUTH");
+							try {
+								ServerManager.getManagedProcess().initProcess();
+							} catch (IOException e) {
+							}
 						}
 					}, new Runnable() {
 						@Override
 						public void run() {
 							try {
-								respondHtmlText(request, response, "Not implemented yet.");
+								respondHtmlText(request, response, "OK");
 							} catch (IOException e) {
 							}
 						}
@@ -167,7 +248,6 @@ public class APIConfigurationHandler {
 								@Override
 								public void run() {
 									try {
-										Thread.sleep(5000);
 										ServerManager.getManagedProcess().stopProcess();
 									} catch (Exception e) {
 									}
@@ -178,7 +258,7 @@ public class APIConfigurationHandler {
 						@Override
 						public void run() {
 							try {
-								respondHtmlText(request, response, "Stopped Serverprocess...");
+								respondHtmlText(request, response, "OK");
 							} catch (IOException e) {
 							}
 						}
@@ -200,8 +280,17 @@ public class APIConfigurationHandler {
 								@Override
 								public void run() {
 									try {
-										Thread.sleep(5000);
-										System.exit(0);
+										ServerManager.runAsync(new Runnable() {
+											@Override
+											public void run() {
+												try {
+													Thread.sleep(5000);
+												} catch (InterruptedException e) {
+													System.exit(0);
+												}
+												System.exit(0);
+											}
+										});
 									} catch (Exception e) {
 									}
 								}
@@ -211,7 +300,7 @@ public class APIConfigurationHandler {
 						@Override
 						public void run() {
 							try {
-								respondHtmlText(request, response, "Process Killed...");
+								respondHtmlText(request, response, "OK");
 							} catch (IOException e) {
 							}
 						}
@@ -248,9 +337,9 @@ public class APIConfigurationHandler {
 							response.getWriter().write(JSONanswer);
 							return;
 						}
-						ServerManager.getManagedProcess().sendCommand(command);
 						ServerManager.getLogger().info("RAN COMMAND PER API: " + ConsoleColors.RED + command);
-						respondHtmlText(request, response, "OK EXECUTED");
+						JLineTerminalCLI.runCommand(command);
+						respondHtmlText(request, response, "OK");
 					} catch (Exception e) {
 						response.setStatus(HttpStatus.CONFLICT_409);
 						response.setContentType("application/json");
@@ -263,6 +352,35 @@ public class APIConfigurationHandler {
 				}
 			}
 		}, "/runCommand/" + AUTH_KEY);
+	}
+
+	private Cookie getNewSessionCookie() {
+		String cookieVal = Utils.generateRandomPasswordString(24);
+		long timestampNow = new Date().getTime();
+		Cookie cookie = new Cookie("rcon_session_auth_" + ServerManager.getProperties().getProperty("rcon-port"),
+				cookieVal);
+		cookie.setHttpOnly(false);
+		cookie.setMaxAge(3600); // set cookie is valid for 1h
+		authenticatedSessions.put(cookieVal, timestampNow);
+		return cookie;
+	}
+
+	private boolean isSessionValid(Request r) {
+		boolean isAutorizedSession = false;
+		Cookie cookies[] = r.getCookies();
+		if (cookies.length > 0) {
+			for (Cookie cookie : cookies) {
+				ServerManager.getLogger().debug("COOKIE: " + cookie.getName() + " VAL: " + cookie.getValue());
+				if (authenticatedSessions.containsKey(cookie.getValue())) {
+					long timestampNow = new Date().getTime();
+					if (timestampNow - authenticatedSessions.get(cookie.getValue()) < 3600000) {
+						isAutorizedSession = true;
+					}
+				}
+			}
+		}
+		ServerManager.getLogger().debug("SessionValid Request: " + isAutorizedSession);
+		return isAutorizedSession;
 	}
 
 	private boolean checkAuthorization(Request request) {
@@ -281,6 +399,7 @@ public class APIConfigurationHandler {
 	}
 
 	private boolean respondHtmlText(Request request, Response response, String resp) throws IOException {
+		response.setStatus(HttpStatus.OK_200);
 		response.setContentType("text/html");
 		response.setContentLength(resp.length());
 		response.getWriter().write(resp);

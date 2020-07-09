@@ -45,16 +45,22 @@
 				color: chartreuse;
 				background: rgb(50, 50, 50);
 			}
+			.loginInvalid {
+				background: darkgrey;
+				color: black;
+			}
+			.loginform {
+				padding-top: 80px;
+				margin: 20px;
+				width: 80vw;
+				height: 90vh
+			}
 			.item-unselectable {
 				user-select: none;
 				-moz-user-select: none;
 				-khtml-user-select: none;
 				-webkit-user-select: none;
 				-o-user-select: none;
-			}
-			.consoleDiv {
-				height: 100vh;
-				top: 0;
 			}
 			.alignleft {
 				float: left;
@@ -92,66 +98,40 @@
 		</style>
 	</head>
 	<body class="item-unselectable">
-		<div class="consoleDiv item-unselectable"></div>
-		<script>
-			function chart(message) {
-			    return "[[g;chartreuse;black]" + message + "]";
-			}
-			var rconSocket = new WebSocket("ws://" + window.location.host.replace("%%apiport%%", "%%port%%") + "/");
-			$(document).ready(() => {
-				function readCookie(name) {
-			        var nameEQ = encodeURIComponent(name) + "=";
-			        var ca = document.cookie.split(';');
-			        for (var i = 0; i < ca.length; i++) {
-			            var c = ca[i];
-			            while (c.charAt(0) === ' ')
-			                c = c.substring(1, c.length);
-			            if (c.indexOf(nameEQ) === 0)
-			                return decodeURIComponent(c.substring(nameEQ.length, c.length));
-			        }
-			        return null;
-			    }
-				jQuery(($, undefined) => {
-					var connected = false;
-				    $('.consoleDiv').terminal(function(command) {
-				        if (command !== '') {
-				            try {
-								rconSocket.send("AUTH:" + readCookie("rcon_session_auth_%%port%%") + "|CMD:" + command);
-				            } catch(exception) {
-								this.echo(chart('Command cannot be sent... Websocket closed...'));
-				                this.error(chart(new String(exception)));
-				            }
-				        }
-				    }, {
-				        greetings: 'Remote-Console MinecraftServermanager: https://github.com/depascaldc/MinecraftServermanager',
-				        name: 'Remote-Console',
-				        prompt: 'console> '
-				    });
-				});
-				var onMessage = function(event) {
-					var data = event.data;
-					if(!data.startsWith("CMD")) {
-						$.terminal.active().echo(chart(data));
+	
+		<center>
+		
+			<div class="loginInvalid"><!-- %%on_invalid_login%% --></div>
+		
+			<div class="loginform">
+				<form id="form">
+					  <div class="form-group">
+						    <label for="api_key">API_KEY</label>
+						    <input type="text" class="form-control" id="api_key" aria-describedby="apikeyhelp" placeholder="Enter API_KEY">
+						    <small id="apikeyhelp" class="form-text text-muted">Enter the API_Key from the servermanager.properties file..</small>
+					  </div>
+					  <div class="form-group">
+						    <label for="api_auth">API_AUTH</label>
+						    <input type="password" class="form-control" id="api_auth" placeholder="Authentication">
+					  </div>
+					  <button id="submit" type="submit" class="btn btn-primary">Submit Login</button>
+				</form>
+				<script>
+					const btn = document.querySelector('button');
+					function sendData( data ) {
+					  const XHR = new XMLHttpRequest();
+					  XHR.open('POST', '/rconlogin?apikey=' + document.getElementById("api_key").value 
+									+ '&apiauth=' + document.getElementById("api_auth").value);
+					  XHR.send();
 					}
-				};
-				var onError = function(event) {
-					$.terminal.active().echo(chart(event.data));
-				}
-				var onOpen = function() {
-					console.log('OPENED WS-Connection: ' + "ws://" + window.location.host.replace("%%apiport%%", "%%port%%") + "/");
-					connected = true;
-				};
-				var onClose = function() {
-					console.log('CLOSED Socket...');
-					rconSocket = null;
-					connected = false;
-				};
-				rconSocket.onopen = onOpen;
-				rconSocket.onclose = onClose;
-				rconSocket.onmessage = onMessage;
-				rconSocket.onerror = onError;
-			});
-		</script>
+					btn.addEventListener( 'click', function() {
+					  sendData();
+					});
+				</script>
+			</div>
+		
+		</center>
+			
 		<footer class="footer item-unselectable">
 		    <div id="textbox">
 		        <p class="alignleft">

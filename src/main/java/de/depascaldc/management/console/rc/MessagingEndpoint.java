@@ -33,6 +33,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 import javax.websocket.EncodeException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
@@ -42,6 +43,7 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 
 import de.depascaldc.management.console.JLineTerminalCLI;
 import de.depascaldc.management.main.ServerManager;
+import de.depascaldc.management.rest.APIConfigurationHandler;
 
 @WebSocket
 public class MessagingEndpoint {
@@ -73,18 +75,35 @@ public class MessagingEndpoint {
 
 	@OnWebSocketMessage
 	public void onMessage(String message) throws IOException, EncodeException {
-		ServerManager.getLogger().out("SocketServer.onMessage::Message=" + message);
-		if (!message.startsWith("CMD:"))
-			return;
 		try {
-			JLineTerminalCLI.runCommand(message.substring(4));
+			ServerManager.getLogger().out("SocketServer.onMessage::Message=" + message);
+			if (!message.startsWith("AUTH")) {
+				broadcast("Authentication not provided in a Websocket Message... returning...");
+				return;
+			}
+			String args[] = StringUtils.split(message, "|");
+			if (args.length < 2)
+				return;
+			String authString = args[0].split(":")[1];
+			if (APIConfigurationHandler.authenticatedSessions.containsKey(authString)) {
+				message = args[1];
+				if (!message.startsWith("CMD"))
+					return;
+				try {
+					JLineTerminalCLI.runCommand(message.substring(4));
+				} catch (Exception e) {
+					broadcast("Command could not be sent... Server not running...");
+				}
+			} else {
+				broadcast("Authentication failed in a Websocket Message... returning...");
+			}
 		} catch (Exception e) {
-			broadcast("Command could not be sent... Server not running...");
+			// TODO: handle exception
 		}
 	}
 
 	public static void broadcast(String message) throws IOException, EncodeException {
-		if(sessions.size() > 0) {
+		if (sessions.size() > 0) {
 			sessions.forEach(endpoint -> {
 				synchronized (endpoint) {
 					try {
