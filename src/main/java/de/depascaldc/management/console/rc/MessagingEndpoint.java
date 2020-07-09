@@ -45,19 +45,17 @@ import de.depascaldc.management.console.JLineTerminalCLI;
 import de.depascaldc.management.main.ServerManager;
 import de.depascaldc.management.rest.APIConfigurationHandler;
 
-@WebSocket
+@WebSocket(maxIdleTime = 60000 * 30) // idle timeout 30 min
 public class MessagingEndpoint {
 
-	private Session session;
 	private static Set<Session> sessions = new CopyOnWriteArraySet<>();
 
 	@OnWebSocketClose
 	public void onClose(int statusCode, String reason) throws IOException, EncodeException {
 		try {
-			ServerManager.getLogger().info("SocketServer.onClose::" + session.getRemoteAddress());
+			ServerManager.getLogger().info("SocketServer.onClose status: " + statusCode + " reason: " + reason);
 		} catch (Exception e) {
-			ServerManager.getLogger().info("SocketServer.onClose... Websocketserver closing");
-			broadcast("Closed RCON Websocketserver");
+			ServerManager.getLogger().info("SocketServer.onClose");
 		}
 	}
 
@@ -98,7 +96,6 @@ public class MessagingEndpoint {
 				broadcast("Authentication failed in a Websocket Message... returning...");
 			}
 		} catch (Exception e) {
-			// TODO: handle exception
 		}
 	}
 
